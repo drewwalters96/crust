@@ -5,6 +5,7 @@
 
 #include <console.h>
 #include <dm.h>
+#include <scpi.h>
 #include <platform/devices.h>
 
 void main(void);
@@ -14,4 +15,6 @@ main(void)
 {
 	console_init(DEV_UART0);
 	dm_init();
+	scpi_init();
+	scpi_ready();
 }
