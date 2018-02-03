@@ -1,6 +1,5 @@
 /*
- * Copyright © 2017 Samuel Holland <samuel@sholland.org>
- * Copyright © 2018 Drew Walters <drewwalters96@gmail.com>
+ * Copyright © 2017-2018 The Crust Firmware Authors.
  * SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0)
  */
 
@@ -10,6 +9,7 @@
 #include <drivers/watchdog.h>
 #include <drivers/watchdog/sunxi-twd.h>
 
+#define TWD_STATUS_REG      0x00
 #define TWD_CTRL_REG        0x10
 #define TWD_RESTART_REG     0x14
 #define TWD_INTV_VAL_REG    0x30
@@ -22,9 +22,7 @@ sunxi_twd_restart(struct device *dev)
 	uint32_t reg;
 
 	/* Enable and perform restart. */
-	reg  = BIT(0);
-	reg |= TWD_RESTART_KEY_VAL;
-
+	reg = TWD_RESTART_KEY_VAL | BIT(0);
 	mmio_write32(dev->regs + TWD_RESTART_REG, reg);
 
 	return SUCCESS;
@@ -33,13 +31,11 @@ sunxi_twd_restart(struct device *dev)
 static int
 sunxi_twd_disable(struct device *dev)
 {
-	uint32_t reg;
+	/* Disable system reset, stop watchdog counter. */
+	mmio_clearsetbits32(dev->regs + TWD_CTRL_REG, BIT(9), BIT(1));
 
-	/* Stop trusted watchdog. */
-	reg  = mmio_read32(dev->regs + TWD_CTRL_REG);
-	reg |= BIT(1);
-
-	mmio_write32(dev->regs + TWD_CTRL_REG, reg);
+	/* Clear any pending interrupt. */
+	mmio_write32(dev->regs + TWD_STATUS_REG, BIT(0));
 
 	return SUCCESS;
 }
@@ -47,26 +43,20 @@ sunxi_twd_disable(struct device *dev)
 static int
 sunxi_twd_enable(struct device *dev, uint32_t timeout)
 {
-	uint32_t reg;
-	uint32_t timeout_intv;
-
 	/* Convert timeout value from microseconds to timeout interval.
 	 *
 	 * TODO(@smaeul): Use clock_get_freq(dev) once clock driver is
 	 *                written.
 	 */
-	timeout_intv = timeout * 24;
-	mmio_write32(dev->regs + TWD_INTV_VAL_REG, timeout_intv);
+	uint32_t interval = timeout * 24;
 
-	/* Reset enable. */
-	reg  = mmio_read32(dev->regs + TWD_CTRL_REG);
-	reg |= BIT(9);
+	/* Program interval until watchdog fires. */
+	mmio_write32(dev->regs + TWD_INTV_VAL_REG, interval);
 
-	mmio_write32(dev->regs + TWD_CTRL_REG, reg);
+	/* Resume watchdog counter, enable system reset. */
+	mmio_clearsetbits32(dev->regs + TWD_CTRL_REG, BIT(1), BIT(9));
 
-	sunxi_twd_restart(dev);
-
-	return SUCCESS;
+	return sunxi_twd_restart(dev);
 }
 
 static int
@@ -74,11 +64,14 @@ sunxi_twd_probe(struct device *dev)
 {
 	int err;
 
-	/* Enable clock and disable watchdog to achieve known state. */
-	if ((err = clock_enable(dev)))
+	/* Verify watchdog is disabled. */
+	if ((err = sunxi_twd_disable(dev)))
 		return err;
 
-	return sunxi_twd_disable(dev);
+	/* Set counter clock source to OSC24M. */
+	mmio_setbits32(dev->regs + TWD_CTRL_REG, BIT(31));
+
+	return SUCCESS;
 }
 
 static const struct watchdog_driver_ops sunxi_twd_driver_ops = {
