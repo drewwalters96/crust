@@ -7,6 +7,7 @@
 #include <drivers/clock/sunxi-ccu.h>
 #include <drivers/irqchip/sun4i-intc.h>
 #include <drivers/msgbox/sunxi-msgbox.h>
+#include <drivers/watchdog/sunxi-twd.h>
 #include <platform/ccu.h>
 #include <platform/devices.h>
 #include <platform/irq.h>
@@ -14,6 +15,7 @@
 static struct device ccu    __device;
 static struct device msgbox __device;
 static struct device r_intc __device;
+static struct device r_twd  __device;
 
 static struct device ccu = {
 	.name = "ccu",
@@ -39,4 +41,12 @@ static struct device r_intc = {
 	.drv     = &sun4i_intc_driver,
 	.drvdata = SUN4I_INTC_DRVDATA(DEV_R_INTC),
 	.regs    = DEV_R_INTC,
+};
+
+static struct device r_twd = {
+	.name     = "r_twd",
+	.clock    = R_CCU_CLOCK_R_TWD,
+	.clockdev = &r_ccu,
+	.drv      = &sunxi_twd_driver,
+	.regs     = DEV_R_TWD,
 };
