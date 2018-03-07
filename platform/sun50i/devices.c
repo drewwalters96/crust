@@ -11,7 +11,6 @@
 #include <msgbox/sunxi-msgbox.h>
 #include <pio/sunxi-pio.h>
 #include <timer/sun8i-r_timer.h>
-#include <wallclock/sun6i-cnt64.h>
 #include <watchdog/sunxi-twd.h>
 #include <platform/ccu.h>
 #include <platform/devices.h>
@@ -22,7 +21,6 @@ static struct device ccu      __device;
 static struct device msgbox   __device;
 static struct device pio      __device;
 static struct device r_ccu    __device;
-static struct device r_cnt64  __device;
 static struct device r_i2c    __device;
 static struct device r_intc   __device;
 static struct device r_pio    __device;
@@ -154,12 +152,6 @@ static struct device r_ccu = {
 			.flags = SUNXI_CCU_FLAG_LAST,
 		},
 	},
-};
-
-static struct device r_cnt64 = {
-	.name = "r_cnt64",
-	.regs = DEV_R_CPUCFG,
-	.drv  = &sun6i_cnt64_driver,
 };
 
 static struct device r_i2c = {
