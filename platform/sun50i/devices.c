@@ -6,6 +6,7 @@
 #include <dm.h>
 #include <util.h>
 #include <clock/sunxi-ccu.h>
+#include <i2c/sun6i-a31-i2c.h>
 #include <irqchip/sun4i-intc.h>
 #include <msgbox/sunxi-msgbox.h>
 #include <pio/sunxi-pio.h>
@@ -22,6 +23,7 @@ static struct device msgbox   __device;
 static struct device pio      __device;
 static struct device r_ccu    __device;
 static struct device r_cnt64  __device;
+static struct device r_i2c    __device;
 static struct device r_intc   __device;
 static struct device r_pio    __device;
 static struct device r_timer0 __device;
@@ -158,6 +160,16 @@ static struct device r_cnt64 = {
 	.name = "r_cnt64",
 	.regs = DEV_R_CPUCFG,
 	.drv  = &sun6i_cnt64_driver,
+};
+
+static struct device r_i2c = {
+	.name     = "r_i2c",
+	.regs     = DEV_R_I2C,
+	.clock    = R_CCU_CLOCK_R_I2C,
+	.clockdev = &r_ccu,
+	.drv      = &sun6i_a31_i2c_driver,
+	.irq      = IRQ_R_I2C,
+	.irqdev   = &r_intc,
 };
 
 static struct device r_intc = {

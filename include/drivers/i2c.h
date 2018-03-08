@@ -15,84 +15,40 @@
 
 struct i2c_driver_ops {
 	int (*read)(struct device *dev, uint8_t *data);
-	int (*start)(struct device *dev, int i2c_op);
+	int (*start)(struct device *dev, uint8_t addr, uint8_t flag);
 	int (*stop)(struct device *dev);
 	int (*write)(struct device *dev, uint8_t data);
 };
 
-enum I2COps {
-	I2C_READ,
-	I2C_WRITE,
+enum {
+	I2C_READ  = 1,
+	I2C_WRITE = 0,
 };
 
 /**
- * TODO(@drewwalters96): Add function documentation.
+ * Probe an I2C device.
+ *
+ * @param dev  The I2C device to probe.
  */
-static inline int
-i2c_probe(struct device *dev)
-{
-	struct device *i2c_dev = dev->bus;
+int i2c_probe(struct device *dev);
 
-	return I2C_OPS(i2c_dev)->write(i2c_dev, (dev->addr << 1));
-}
+/**
+ * Read the register of an I2C device.
+ *
+ * @param dev   The I2C device that contains the register to read.
+ * @param addr  The register address of the I2C device.
+ * @param data  The location to save the contents read from the I2C device
+ * register.
+ */
+int i2c_read_reg(struct device *dev, uint8_t addr, uint8_t *data);
 
-static inline int
-i2c_read_reg(struct device *dev, uint8_t addr, uint8_t *data)
-{
-	struct device *i2c_dev = dev->bus;
-
-	/* Start transaction. */
-	if (!I2C_OPS(i2c_dev)->start(i2c_dev, I2C_WRITE))
-		return EIO;
-
-	/* Write device address and write flag. */
-	if (!I2C_OPS(i2c_dev)->write(i2c_dev, dev->addr << 1))
-		return ENODEV;
-
-	/* Write register address. */
-	if (!I2C_OPS(i2c_dev)->write(i2c_dev, addr))
-		return EIO;
-
-	/* Repeat start. */
-	if (!I2C_OPS(i2c_dev)->start(i2c_dev, I2C_READ))
-
-		/* Send register address and read flag. */
-		if (!I2C_OPS(i2c_dev)->write(i2c_dev, addr << 1 | BIT(0)))
-			return EIO;
-
-	/* Read data */
-	if (!I2C_OPS(i2c_dev)->read(i2c_dev, data))
-		return EIO;
-
-	/* Stop transaction. */
-	return I2C_OPS(i2c_dev)->stop(i2c_dev);
-}
-
-static inline int
-i2c_write_reg(struct device *dev, uint8_t addr, uint8_t data)
-{
-	struct device *i2c_dev = dev->bus;
-
-	/* Start transaction. */
-	if (!I2C_OPS(i2c_dev)->start(i2c_dev, I2C_WRITE))
-		return EIO;
-
-	/* Write device address. */
-	if (!I2C_OPS(i2c_dev)->write(i2c_dev, dev->addr << 1))
-		return EIO;
-
-	/* Send register address. */
-	if (!I2C_OPS(i2c_dev)->write(i2c_dev, addr << 1))
-		return EIO;
-
-	/* Write data */
-	if (!I2C_OPS(i2c_dev)->write(i2c_dev, data))
-		return EIO;
-
-	/* Stop transaction. */
-	return I2C_OPS(i2c_dev)->stop(i2c_dev);
-}
-
-bool i2c_status_verify(struct device *dev, uint8_t status);
+/**
+ * Write to the register of an I2C device.
+ *
+ * @param dev   The I2C device that contains the register to write to.
+ * @param addr  The register address of the I2C device.
+ * @param data  The data to write to the register of the supplied I2C device.
+ */
+int i2c_write_reg(struct device *dev, uint8_t addr, uint8_t data);
 
 #endif /* DRIVERS_I2C_H */
