@@ -14,6 +14,7 @@
 int
 i2c_probe(struct device *dev)
 {
+	debug("%s is trying to probe", dev->name);
 	struct device *i2c_dev = dev->bus;
 	int start_result;
 
@@ -29,6 +30,7 @@ i2c_probe(struct device *dev)
 int
 i2c_read_reg(struct device *dev, uint8_t addr, uint8_t *data)
 {
+	debug("%s is truing to read %ux", dev->name, addr);
 	struct device *i2c_dev = dev->bus;
 	int result;
 
@@ -60,6 +62,7 @@ abort:
 int
 i2c_write_reg(struct device *dev, uint8_t addr, uint8_t data)
 {
+	debug("%s is trying to write %ux to %ux", dev->name, data, addr);
 	struct device *i2c_dev = dev->bus;
 	int result;
 

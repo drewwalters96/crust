@@ -12,6 +12,7 @@
 static int
 axp803_probe(struct device *dev)
 {
+	debug("%s: Beginning probe", dev->name);
 	int     err;
 	uint8_t addr, reg;
 

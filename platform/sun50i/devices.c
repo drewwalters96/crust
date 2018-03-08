@@ -165,6 +165,7 @@ static struct device r_ccu = {
 
 static struct device r_i2c = {
 	.name     = "r_i2c",
+	.bus      = &r_pio,
 	.regs     = DEV_R_I2C,
 	.clock    = R_CCU_CLOCK_R_I2C,
 	.clockdev = &r_ccu,
