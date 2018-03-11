@@ -14,11 +14,12 @@
 int
 i2c_probe(struct device *dev)
 {
-	debug("%s is trying to probe", dev->name);
 	struct device *i2c_dev = dev->bus;
 	int start_result;
 
 	assert(i2c_dev);
+
+	info("%s: Probing device %s with address 0x%02x", i2c_dev->name, dev->name, dev->addr);
 
 	/* Start and stop a transaction. */
 	start_result = I2C_OPS(i2c_dev)->start(i2c_dev, dev->addr, I2C_WRITE);

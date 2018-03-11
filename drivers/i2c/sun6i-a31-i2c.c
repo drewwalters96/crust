@@ -4,6 +4,7 @@
  */
 
 #include <clock.h>
+#include <delay.h>
 #include <dm.h>
 #include <error.h>
 #include <i2c.h>
@@ -22,7 +23,7 @@
 #define I2C_STAT_REG  0x10
 #define I2C_XADDR_REG 0x04
 
-#define I2C_TIMEOUT   10 /*< Timeout in μs. */
+#define I2C_TIMEOUT   1000 /*< Timeout in μs. */
 
 enum {
 	START_COND_TX        = 0x08,
@@ -38,12 +39,12 @@ enum {
 };
 
 static bool sun6i_a31_i2c_verify_status(struct device *dev, uint8_t status);
+static bool sun6i_a31_i2c_wait_idle(struct device *dev);
 static int sun6i_a31_i2c_write(struct device *dev, uint8_t data);
 
 static int
 sun6i_a31_i2c_read(struct device *dev, uint8_t *data)
 {
-	warn("trying to read!");
 	/* Wait for data. */
 	if (!sun6i_a31_i2c_verify_status(dev, DATA_RX_NACK))
 		return ENODEV;
@@ -57,7 +58,6 @@ sun6i_a31_i2c_read(struct device *dev, uint8_t *data)
 static int
 sun6i_a31_i2c_start(struct device *dev, uint8_t addr, uint8_t flag)
 {
-	warn("trying to start!");
 	uint8_t  status;
 	uint32_t init_status = mmio_read32(dev->regs + I2C_STAT_REG);
 
@@ -73,15 +73,12 @@ sun6i_a31_i2c_start(struct device *dev, uint8_t addr, uint8_t flag)
 		return EIO;
 
 	/* Write device address and flag. */
-	if (sun6i_a31_i2c_write(dev, addr << 1 | flag)) {
-		if (!!sun6i_a31_i2c_verify_status(dev, ADDR_WRITE_RX_ACK))
-			return ENODEV;
-	} else {
-		return EIO;
-	}
-
-	/* Move to next state. */
+	mmio_write32(dev->regs + I2C_DATA_REG, addr << 1 | 1);
 	mmio_setbits32(dev->regs + I2C_CTRL_REG, BIT(3));
+
+	/* Check for address acknowledgement. */
+	if (!sun6i_a31_i2c_verify_status(dev, ADDR_WRITE_RX_ACK))
+		return ENODEV;
 
 	return SUCCESS;
 }
@@ -98,19 +95,67 @@ sun6i_a31_i2c_stop(struct device *dev)
 	return SUCCESS;
 }
 
-static bool
-sun6i_a31_i2c_verify_status(struct device *dev, uint8_t status)
-{
-	warn("%s just tried to check status %u!", dev->name, status);
-	uint64_t timeout = wallclock_read() + I2C_TIMEOUT;
-	debug("Now checking for status %u", status);
+// static bool
+// sun6i_a31_i2c_verify_status(struct device *dev, uint8_t status)
+// {
+// 	uint64_t timeout = wallclock_read() + I2C_TIMEOUT;
+// 	uint8_t current_stat;
 
-	while ((mmio_read32(dev->regs + I2C_STAT_REG)) != status) {
-		/* Check for timeout. */
-		if (wallclock_read() >= timeout) {
-			error("%s: Timeout waiting for status %u",
-			      dev->name, status);
-			debug("At timeout, the status was %u", mmio_read32(dev->regs + I2C_STAT_REG));
+// 	while (!(mmio_read32(I2C_CTRL_REG) & BIT(3))) {
+// 		/* Check for timeot. */
+// 		if (wallclock_read() >= timeout) {
+// 			if (status == IDLE)
+// 				break;
+// 			error("%s: Timeout waiting for status 0x%02x", dev->name, status);
+// 			return false;
+// 		}
+// 	}
+
+// 	/* Verify current status matches expected status. */
+// 	if ((current_stat = mmio_read32(dev->regs + I2C_STAT_REG)) != status) {
+// 		error("%s: Status 0x%02x does not match expected status 0x%02x", dev->name, current_stat, status);
+// 		return false;
+// 	}
+
+// 	return true;
+// }
+
+static bool sun6i_a31_i2c_verify_status(struct device *dev, uint8_t status)
+{
+	if (status == IDLE)
+		return sun6i_a31_i2c_wait_idle(dev);
+
+	/* Timeout for I2C state change in 100kHz bus cycles */
+	int timeout = 100;
+	uint32_t reg;
+
+	while (!(reg = (mmio_read32(dev->regs + I2C_CTRL_REG) & BIT(3)))) {
+		/* 10 usecs = 1 100kHz bus cycle */
+		udelay(10);
+		if (!(timeout -= 1)) {
+ 			error("%s: Timeout waiting for status 0x%02x", dev->name, status);
+			 return false;
+		}
+	}
+	if ((reg = mmio_read32(dev->regs + I2C_STAT_REG)) != status) {
+		error("%s: Status 0x%02x does not match expected status 0x%02x", dev->name, reg, status);
+		return false;
+	}
+
+	return true;
+}
+
+static bool sun6i_a31_i2c_wait_idle(struct device *dev)
+{
+	/* Timeout for I2C state change in 100kHz bus cycles */
+	int timeout = 10;
+	uint32_t reg;
+
+	while ((reg = mmio_read32(dev->regs + I2C_STAT_REG)) != IDLE) {
+		/* 10 usecs = 1 100kHz bus cycle */
+		udelay(10);
+		if (!(timeout -= 1)) {
+			error("%s: Timeout waiting for status 0x%02x", dev->name, IDLE);
 			return false;
 		}
 	}
@@ -144,7 +189,6 @@ static const struct i2c_driver_ops sun6i_a31_i2c_driver_ops = {
 static int
 sun6i_a31_i2c_probe(struct device *dev)
 {
-	debug("%s: Beginning probe", dev->name);
 	int err;
 
 	if ((err = clock_enable(dev)))
@@ -153,7 +197,6 @@ sun6i_a31_i2c_probe(struct device *dev)
 	/* Set port L pins 0-1 to I2C. */
 	pio_set_mode(dev->bus, 0, 2);
 	pio_set_mode(dev->bus, 1, 2);
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/**
 	 * Set I2C bus clock divider for 100 KHz operation.
@@ -161,30 +204,22 @@ sun6i_a31_i2c_probe(struct device *dev)
 	 * fixed.
 	 */
 	mmio_setbits32(dev->regs + I2C_CCR_REG, 0x00000011);
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/* Clear address. */
 	mmio_write32(dev->regs, 0);
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
-
 	mmio_write32(dev->regs + I2C_XADDR_REG, 0);
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/* Enable I2C bus, disable interrupts, send NACK after receive */
 	mmio_write32(dev->regs + I2C_CTRL_REG, BIT(6));
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/* Disable extended features. */
 	mmio_write32(dev->regs + I2C_EFR_REG, 0);
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/* Disable manual control of line levels. */
 	mmio_clearbits32(dev->regs + I2C_LCR_REG, BIT(2) | BIT(0));
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	/* Soft reset the controller. */
 	mmio_setbits32(dev->regs + I2C_SRST_REG, BIT(0));
-	debug("Status is %u", mmio_read32(dev->regs + I2C_STAT_REG));
 
 	if (!sun6i_a31_i2c_verify_status(dev, IDLE)) {
 		error("%s: Failed to initialize", dev->name);

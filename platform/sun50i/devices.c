@@ -32,7 +32,7 @@ static struct device r_twd    __device;
 static struct device axp803 = {
 	.name = "axp803",
 	.bus  = &r_i2c,
-	.addr = 0x34, /* If it doesn't work, try 0x35. */
+	.addr = 0x35, /* If it doesn't work, try 0x35. */
 	.drv  = &axp803_driver,
 };
 

@@ -17,7 +17,7 @@ axp803_probe(struct device *dev)
 	uint8_t addr, reg;
 
 	if ((err = i2c_probe(dev))) {
-		error("%s: i2c probe 0x%x error %u",
+		error("%s: i2c probe 0x%x error %d",
 		      dev->name, dev->addr, err);
 		goto end;
 	}
