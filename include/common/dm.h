@@ -23,7 +23,6 @@ enum {
 	DM_CLASS_I2C,
 	DM_CLASS_IRQCHIP,
 	DM_CLASS_MSGBOX,
-	DM_CLASS_PIO,
 	DM_CLASS_TIMER,
 	DM_CLASS_WATCHDOG,
 };
@@ -41,6 +40,8 @@ struct device {
 	uintptr_t                  drvdata;
 	/** The controller for the bus this device is connected to. */
 	struct device *const       bus;
+	/** The GPIO pins utilized by this device. */
+	struct gpio_pin           *gpio_pins;
 	/** The controller for this device's clock. */
 	struct device *const       clockdev;
 	/** The controller for this device's IRQ. */
@@ -81,6 +82,14 @@ struct device *dm_get_by_class(uint32_t class);
  * @param name The name of the device.
  */
 struct device *dm_get_by_name(const char *name);
+
+/**
+ * Sets the mode of the GPIO pins specified for a device.
+ *
+ * @param dev       The device containing the GPI pins to initialize.
+ * @param num_pins  The number of pins utilized by the device.
+ */
+int dm_set_pins(struct device *dev, uint8_t num_pins);
 
 /**
  * Initialize the driver model, probing all devices in topological order.

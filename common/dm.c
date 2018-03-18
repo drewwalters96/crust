@@ -6,6 +6,7 @@
 #include <debug.h>
 #include <dm.h>
 #include <error.h>
+#include <gpio.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -75,6 +76,25 @@ dm_get_by_name(const char *name)
 	}
 
 	panic("dm: Device %s not found", name);
+}
+
+int
+dm_set_pins(struct device *dev, uint8_t num_pins)
+{
+	struct gpio_pin *pins = dev->gpio_pins;
+	uint8_t pin_id, mode;
+	int     result;
+
+	for (uint8_t p = 0; p < num_pins; ++p) {
+		pin_id = pins[p].pin;
+		mode   = pins[p].mode;
+
+		/* Set pin mode and return if error occurs. */
+		if ((result = gpio_set_mode(dev, pin_id, mode)))
+			return result;
+	}
+
+	return SUCCESS;
 }
 
 void
