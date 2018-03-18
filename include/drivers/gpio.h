@@ -25,6 +25,12 @@ struct gpio_driver {
 	const struct gpio_driver_ops ops;
 };
 
+struct gpio_pin {
+	struct device *dev;
+	uint8_t        pin;
+	uint8_t        mode;
+};
+
 /**
  * Get the value of a pin.
  *
