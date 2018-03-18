@@ -11,6 +11,7 @@
 #include <i2c.h>
 #include <mmio.h>
 #include <util.h>
+#include <i2c/sun6i-a31-i2c.h>
 
 #define I2C_ADDR_REG  0x00
 #define I2C_XADDR_REG 0x04
@@ -167,8 +168,7 @@ sun6i_a31_i2c_probe(struct device *dev)
 		return err;
 
 	/* Set port L pins 0-1 to I²C. */
-	gpio_set_mode(dev->bus, 0, 3);
-	gpio_set_mode(dev->bus, 1, 3);
+	dm_set_pins(dev, I2C_NUM_PINS);
 
 	/* Set I2C bus clock divider for 100 KHz operation. */
 	mmio_write32(dev->regs + I2C_CCR_REG, 0x00000011);
