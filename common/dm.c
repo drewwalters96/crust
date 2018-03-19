@@ -82,15 +82,17 @@ int
 dm_set_pins(struct device *dev, uint8_t num_pins)
 {
 	struct gpio_pin *pins = dev->gpio_pins;
+	struct device *gpio_dev;
 	uint8_t pin_id, mode;
 	int     result;
 
 	for (uint8_t p = 0; p < num_pins; ++p) {
+		gpio_dev= pins[p].dev;
 		pin_id = pins[p].pin;
 		mode   = pins[p].mode;
 
 		/* Set pin mode and return if error occurs. */
-		if ((result = gpio_set_mode(dev, pin_id, mode)))
+		if ((result = gpio_set_mode(gpio_dev, pin_id, mode)))
 			return result;
 	}
 
